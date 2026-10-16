@@ -39,7 +39,11 @@ def main(argv=None) -> int:
         print("error: src/scanner.py (detection engine) not found or incomplete.", file=sys.stderr)
         return 2
 
-    anomalies = scan_file(args.logfile)
+    try:
+        anomalies = scan_file(args.logfile)
+    except NotImplementedError:
+        print("error: scanner.py is still a skeleton - detectors not implemented yet.", file=sys.stderr)
+        return 3
     report = build_report(anomalies, args.logfile, count_lines(args.logfile))
     print_console(report, color=False if args.no_color else None)
     print(f"\nJSON report : {write_json(report, args.json)}")
