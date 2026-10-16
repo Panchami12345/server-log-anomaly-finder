@@ -97,23 +97,5 @@ python -m unittest discover -s tests
 ```
 Full format: [`docs/report_format.md`](docs/report_format.md).
 
-## Team
-| Member | Week 1 role | Week 2 role |
-|---|---|---|
-| Member 1 | Log format & SIEM/Splunk research | Regex design / docs |
-| Member 2 | Regex patterns & DFA design | Python log scanner |
-| Member 3 | Sample dataset + expected anomalies | Sample log generator / tests |
-| Member 4 | GitHub setup, README, architecture | Report + chart + slides |
-
-*(Replace with real names and GitHub usernames.)*
-
-## Contribution rules
-- Everyone commits their own work from their own GitHub account.
-- Small, meaningful commits (e.g. `docs: add regex for failed-login flood`); no last-minute dumps.
-- Member 4 coordinates the repo but does not commit other members' files.
-
-## How this scales to real SIEM tools
-Real SIEMs (e.g. Splunk) ingest logs from many sources, parse fields at index/search time, and
-run pattern and threshold searches over huge volumes. Our detectors are the same idea in
-miniature: a DFA reads each log line in a single pass (O(n), no backtracking), so the same
+pass (O(n), no backtracking), so the same
 approach parallelises across files/servers. See the final slides for the mini-SIEM vs Splunk comparison.
