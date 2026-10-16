@@ -30,32 +30,32 @@ flowchart LR
 ## 2. Folder structure, owners and status
 ```
 server-log-anomaly-finder/
-├── README.md                 project overview, setup, run, test            M4
-├── requirements.txt          matplotlib                                    M4
-├── .gitignore                                                              M4
+├── README.md                 project overview, setup, run, test            
+├── requirements.txt          matplotlib                                    
+├── .gitignore                                                            
 ├── logs/
-│   └── sample_logs.txt       ~200 lines, normal + injected anomalies       M3
+│   └── sample_logs.txt       ~200 lines, normal + injected anomalies    
 ├── docs/
-│   ├── log_format.md         log fields, 10+ examples, SIEM/Splunk notes   M1
-│   ├── regex_patterns.md     4 regexes, explanations, sample matches       M2
-│   ├── dfa_design.md         DFA diagrams + transition tables              M2
-│   ├── architecture.md       this file                                     M4
-│   ├── architecture.png      workflow diagram                              M4
-│   ├── report_format.md      report/JSON/chart specification               M4
-│   ├── week2_checklist.md    hand-off checklist                            M4
-│   └── slides.pptx           mini SIEM vs Splunk presentation              M4
+│   ├── log_format.md         log fields, 10+ examples, SIEM/Splunk notes 
+│   ├── regex_patterns.md     4 regexes, explanations, sample matches
+│   ├── dfa_design.md         DFA diagrams + transition tables       
+│   ├── architecture.md       this file                                     
+│   ├── architecture.png      workflow diagram                              
+│   ├── report_format.md      report/JSON/chart specification               
+│   ├── week2_checklist.md    hand-off checklist                            
+│   └── slides.pptx           mini SIEM vs Splunk presentation              
 ├── src/
-│   ├── models.py             shared data contracts (LogRecord, Anomaly)    DONE (M4)
-│   ├── scanner.py            parser + 4 detectors + scan_file()            SKELETON -> M2
-│   ├── report.py             console + JSON report                         DONE (M4)
-│   ├── visualize.py          Matplotlib chart                              DONE (M4)
-│   └── main.py               CLI entry point                               DONE (M4)
+│   ├── models.py             shared data contracts (LogRecord, Anomaly)  
+│   ├── scanner.py            parser + 4 detectors + scan_file()           
+│   ├── report.py             console + JSON report                     
+│   ├── visualize.py          Matplotlib chart                              
+│   └── main.py               CLI entry point                               
 ├── tests/
-│   ├── expected_anomalies.md ground truth: line numbers + types            M3
-│   ├── test_report.py        unit tests for report/chart                   DONE (M4)
-│   ├── test_scanner.py       parser/detector tests vs expected_anomalies   TODO (M2/M3)
-│   └── demo_report.py        demo report without scanner                   DONE (M4)
-└── reports/                  generated output (report.json, chart.png)     auto
+│   ├── expected_anomalies.md ground truth: line numbers + types            
+│   ├── test_report.py        unit tests for report/chart                   
+│   ├── test_scanner.py       parser/detector tests vs expected_anomalies   
+│   └── demo_report.py        demo report without scanner                   
+└── reports/                  generated output (report.json, chart.png)     
 ```
 Roles are from the Week 1 brief (M1-M4). Week 2 roles in the problem statement differ slightly
 (scanner = M2, log generator = M3, report/chart/slides = M4); agree final ownership in the team chat.
