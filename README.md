@@ -32,17 +32,17 @@ server-log-anomaly-finder/
 ├── README.md
 ├── requirements.txt
 ├── logs/
-│   └── sample_logs.txt          # ~200 lines, normal + injected anomalies   (Member 3)
+│   └── sample_logs.txt          # ~200 lines, normal + injected anomalies  
 ├── docs/
-│   ├── log_format.md            # log format + SIEM/Splunk notes            (Member 1)
-│   ├── regex_patterns.md        # 4 regex patterns + sample matches         (Member 2)
-│   ├── dfa_design.md            # DFA diagrams + transition tables          (Member 2)
-│   ├── architecture.md          # workflow/architecture diagram             (Member 4)
+│   ├── log_format.md            # log format + SIEM/Splunk notes           
+│   ├── regex_patterns.md        # 4 regex patterns + sample matches  
+│   ├── dfa_design.md            # DFA diagrams + transition tables        
+│   ├── architecture.md          # workflow/architecture diagram          
 │   ├── architecture.png
-│   ├── report_format.md         # report + chart specification              (Member 4)
-│   └── week2_checklist.md       # hand-off checklist                        (Member 4)
+
+
 ├── tests/
-│   ├── expected_anomalies.md    # ground truth: line numbers + types        (Member 3)
+│   ├── expected_anomalies.md    # ground truth: line numbers + types       
 │   ├── test_report.py           # unit tests for reporting
 │   └── demo_report.py           # demo report without the scanner
 ├── src/
