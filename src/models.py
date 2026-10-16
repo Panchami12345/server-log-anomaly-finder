@@ -36,3 +36,18 @@ class Anomaly:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+
+@dataclass
+class LogRecord:
+    """One parsed log line (output of the parser, input of every detector)."""
+    line_no: int        # 1-based line number in the file
+    ip: str
+    time: str           # "HH:MM:SS"
+    date: str           # e.g. "20/Jun/2026"
+    method: str         # GET, POST, ...
+    path: str           # /admin/config
+    status: int         # 404, 401, 200, ...
+    size: int           # response bytes
+    user_agent: str     # "" if missing
+    raw: str            # original line
