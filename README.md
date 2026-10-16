@@ -47,7 +47,7 @@ server-log-anomaly-finder/
 │   └── demo_report.py           # demo report without the scanner
 ├── src/
 │   ├── models.py                # shared Anomaly data contract
-│   ├── scanner.py               # parser + regex/DFA detectors
+│   ├── scanner.py               # parser + regex/DFA detectors (skeleton, to implement)
 │   ├── report.py                # JSON + coloured console report
 │   ├── visualize.py             # Matplotlib chart
 │   └── main.py                  # command-line entry point
