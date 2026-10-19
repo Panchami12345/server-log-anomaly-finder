@@ -19,21 +19,19 @@ from models import (Anomaly, LogRecord, DIRECTORY_SCANNING, FAILED_LOGIN_FLOOD,
 #   192.168.1.5 - - [12/Jan/2025:03:21:00 +0000] "GET /admin HTTP/1.1" 404 512 "-" "sqlmap/1.4"
 # ---------------------------------------------------------------------------
 LOG_RE = re.compile(
-    r'^(\d{1,3}(?:\.\d{1,3}){3})'       # group 1 : IP address
-    r'\s+\S+\s+\S+'                       # ident + auth (usually - -)
-    r'\s+\[(\d{2}/\w{3}/\d{4})'          # group 2 : date  dd/Mon/yyyy
-    r':(\d{2}:\d{2}:\d{2})'              # group 3 : time  HH:MM:SS
-    r'(?:\s[+-]\d{4})?\]'                # optional timezone offset
-    r'\s+["\']'                           # opening quote (single or double)
-    r'(\w+)'                              # group 4 : HTTP method
-    r'\s+(\S+)'                           # group 5 : URL path
-    r'\s+HTTP/\d\.\d'                     # protocol version
-    r'["\']'                              # closing quote (single or double)
-    r'\s+(\d{3})'                         # group 6 : status code
-    r'\s+(\d+|-)'                         # group 7 : response size (or -)
-    r'(?:\s+"([^"]*)")?'                  # group 8 : referer (optional)
-    r'(?:\s+"([^"]*)")?'                  # group 9 : user-agent (optional)
+    r'^(?P<ip>\d{1,3}(?:\.\d{1,3}){3})'
+    r'\s+\S+\s+\S+'
+    r'\s+\[(?P<date>\d{2}/[A-Za-z]{3}/\d{4}):'
+    r'(?P<time>\d{2}:\d{2}:\d{2})'
+    r'(?:\s+(?P<tz>[+-]\d{4}))?\]'
+    r'\s+(?P<q>[\"\'])'
+    r'(?P<method>[A-Za-z]+)\s+(?P<path>\S+)\s+HTTP/\d\.\d'
+    r'(?P=q)\s+(?P<status>\d{3})\s+(?P<size>\d+|-)'
+    r'(?P<tail>.*)$'
 )
+QUOTED_FIELD_RE = re.compile(r'\s+([\"\'])(.*?)\1')
+IPV4_RE = re.compile(r'^\d{1,3}(?:\.\d{1,3}){3}$')
+
 
 # ---------------------------------------------------------------------------
 # Thresholds — single source of truth (also documented in docs/thresholds.md)
@@ -62,10 +60,26 @@ FAILED_LOGIN_CODES = {401, 403}
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _time_to_seconds(time_str: str) -> int:
-    """Convert 'HH:MM:SS' to total seconds since midnight."""
-    h, m, s = time_str.split(":")
-    return int(h) * 3600 + int(m) * 60 + int(s)
+def _timestamp(rec: LogRecord):
+    """Return a real datetime so windows work across midnight and dates."""
+    from datetime import datetime
+    try:
+        return datetime.strptime(f"{rec.date} {rec.time}", "%d/%b/%Y %H:%M:%S")
+    except (ValueError, TypeError):
+        return None
+
+
+def _within_window(records, current, seconds: int):
+    """Keep only records no more than seconds before current timestamp."""
+    current_ts = _timestamp(current)
+    if current_ts is None:
+        return []
+    kept = []
+    for record in records:
+        ts = _timestamp(record)
+        if ts is not None and 0 <= (current_ts - ts).total_seconds() <= seconds:
+            kept.append(record)
+    return kept
 
 
 def _is_login_path(path: str) -> bool:
@@ -79,29 +93,42 @@ def _is_login_path(path: str) -> bool:
 # ---------------------------------------------------------------------------
 
 def parse_line(line_no: int, line: str) -> Optional[LogRecord]:
-    """Parse one raw log line into a LogRecord.
-    Returns None if line is empty or does not match the log format (never raises).
-    """
+    """Parse Apache/Nginx combined-style log line. Invalid lines return None."""
     if not line or not line.strip():
         return None
-    m = LOG_RE.match(line)
+    m = LOG_RE.match(line.strip())
     if not m:
         return None
     try:
-        size_str = m.group(7)
+        ip = m.group("ip")
+        # Validate octet ranges, not just dotted-decimal shape.
+        octets = [int(part) for part in ip.split(".")]
+        if len(octets) != 4 or any(part < 0 or part > 255 for part in octets):
+            return None
+        # Validate date/time as well as syntax.
+        from datetime import datetime
+        datetime.strptime(f'{m.group("date")} {m.group("time")}', "%d/%b/%Y %H:%M:%S")
+        tail = m.group("tail")
+        quoted = list(QUOTED_FIELD_RE.finditer(tail))
+        referer, user_agent = "", ""
+        if len(quoted) >= 2:
+            referer, user_agent = quoted[0].group(2), quoted[1].group(2)
+        elif len(quoted) == 1:
+            # Some shortened logs include only a user-agent. Recognize known
+            # scanner/client markers; otherwise treat the lone field as referer.
+            value = quoted[0].group(2)
+            if any(k in value.lower() for k in SUSPICIOUS_UA) or value.lower().startswith(("mozilla/", "opera/")):
+                user_agent = value
+            else:
+                referer = value
+        size_str = m.group("size")
         return LogRecord(
-            line_no    = line_no,
-            ip         = m.group(1),
-            date       = m.group(2),
-            time       = m.group(3),
-            method     = m.group(4).upper(),
-            path       = m.group(5),
-            status     = int(m.group(6)),
-            size       = int(size_str) if size_str != "-" else 0,
-            user_agent = (m.group(9) or "").strip(),
-            raw        = line,
+            line_no=line_no, ip=ip, date=m.group("date"), time=m.group("time"),
+            method=m.group("method").upper(), path=m.group("path"),
+            status=int(m.group("status")), size=int(size_str) if size_str != "-" else 0,
+            user_agent=user_agent.strip(), raw=line,
         )
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, TypeError):
         return None
 
 
@@ -128,13 +155,7 @@ def detect_directory_scanning(records: Iterable[LogRecord]) -> List[Anomaly]:
             bucket["window"] = []
             continue
 
-        ts = _time_to_seconds(rec.time)
-
-        # Drop records outside the sliding window BEFORE adding current record
-        bucket["window"] = [
-            r for r in bucket["window"]
-            if abs(ts - _time_to_seconds(r.time)) <= SCAN_WINDOW_SEC
-        ]
+        bucket["window"] = _within_window(bucket["window"], rec, SCAN_WINDOW_SEC)
 
         # Only advance state if current record fits in the window
         if bucket["window"] or bucket["state"] == 0:
@@ -191,13 +212,7 @@ def detect_failed_login_flood(records: Iterable[LogRecord]) -> List[Anomaly]:
             bucket["window"] = []
             continue
 
-        ts = _time_to_seconds(rec.time)
-
-        # Drop records outside sliding window BEFORE adding current
-        bucket["window"] = [
-            r for r in bucket["window"]
-            if abs(ts - _time_to_seconds(r.time)) <= LOGIN_WINDOW_SEC
-        ]
+        bucket["window"] = _within_window(bucket["window"], rec, LOGIN_WINDOW_SEC)
 
         bucket["window"].append(rec)
         bucket["state"] = len(bucket["window"])
@@ -344,6 +359,9 @@ def scan_file(path: str) -> List[Anomaly]:
             rec = parse_line(n, line.rstrip("\n"))
             if rec:
                 records.append(rec)
+
+    # Process chronologically so time windows behave correctly across midnight.
+    records.sort(key=lambda r: (_timestamp(r) or __import__("datetime").datetime.min, r.line_no))
 
     anomalies: List[Anomaly] = []
     for detector in (
