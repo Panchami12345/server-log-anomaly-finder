@@ -33,7 +33,7 @@ def sort_anomalies(anomalies: List[Anomaly]) -> List[Anomaly]:
 
 
 def build_report(anomalies: List[Anomaly], source_file: str, total_lines: int) -> dict:
-    """Build the JSON-serialisable report dictionary (see docs/report_format.md)."""
+    """Build the JSON-serialisable report dictionary (see docs/report.md)."""
     ordered = sort_anomalies(anomalies)
     by_type = Counter({t: 0 for t in ANOMALY_TYPES})
     by_sev = Counter({s: 0 for s in SEVERITIES})
